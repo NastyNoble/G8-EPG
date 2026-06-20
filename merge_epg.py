@@ -4,10 +4,10 @@ import xml.etree.ElementTree as ET
 
 BASE_URL = "https://epgshare01.online/epgshare01/"
 
+# Cleaned list matching epgshare's current active directory files
 categories = [
     # --- UNITED STATES ---
-    "epg_ripper_US1.xml.gz",         
-    "epg_ripper_US2.xml.gz",         
+    "epg_ripper_US2.xml.gz",         # Main Premium/Cable (Replaces the deprecated US1 file)
     "epg_ripper_US_LOCALS1.xml.gz",  
     "epg_ripper_US_LOCALS2.xml.gz",  
     
@@ -35,7 +35,11 @@ for filename in categories:
         response = requests.get(full_url, timeout=45)
         if response.status_code == 200:
             xml_data = gzip.decompress(response.content)
-            root = ET.fromstring(xml_data)
+            
+            # Use an explicit parser settings template to handle mixed global characters safely
+            parser = ET.XMLParser(encoding="utf-8")
+            root = ET.fromstring(xml_data, parser=parser)
+            
             if master_root is None:
                 master_root = root
                 print("   ✓ Base XML template established.")
@@ -50,9 +54,10 @@ for filename in categories:
                     programmes_added += 1
                 print(f"   ✓ Successfully appended {channels_added} channels & {programmes_added} airings.")
         else:
-            print(f"   ❌ Server connection skipped (HTTP Code {response.status_code})")
+            print(f"   ⚠️ Skipped: Server responded with status code {response.status_code}")
     except Exception as e:
-        print(f"   ❌ Execution block error for {filename}: {e}")
+        # Prevents the entire workflow from crashing if a single region file fails
+        print(f"   ⚠️ Could not parse data block for {filename}: {e}")
 
 if master_root is not None:
     output_filename = "my_combined_epg.xml.gz"
@@ -62,4 +67,5 @@ if master_root is not None:
         f.write(ET.tostring(master_root, encoding='utf-8'))
     print("\n🎉 Custom XMLTV file successfully compiled.")
 else:
-    print("\n🚨 Build terminated: Data streams returned empty.")
+    print("\n🚨 Build terminated: No data streams were successfully compiled.")
+    exit(1) # Signal failure to GitHub only if everything failed
