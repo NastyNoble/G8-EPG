@@ -4,13 +4,13 @@ import xml.etree.ElementTree as ET
 
 BASE_URL = "https://epgshare01.online/epgshare01/"
 
-# Cleaned, actively verified file tracks from the epgshare directory
 categories = [
     # --- UNITED STATES & PLATFORMS ---
     "epg_ripper_US_LOCALS1.xml.gz",  
     "epg_ripper_US_LOCALS2.xml.gz",  
-    "epg_ripper_US_SPORTS1.xml.gz",  
+    "epg_ripper_US_SPORTS1.xml.gz",  # National Sports (ESPN, FS1, NFL Network)
     "epg_ripper_US_SPORTS2.xml.gz",  
+    "epg_ripper_US_SPORTS_LOCALS1.xml.gz", # Regional Sports (Space City, Bally, etc.)
     "epg_ripper_SPORTS1.xml.gz",     
     "epg_ripper_PEACOCK1.xml.gz",    
     
@@ -23,11 +23,16 @@ categories = [
 master_root = None
 print("🔄 Initializing EPG Merge Core Engine...\n")
 
+# Browser headers to ensure smooth downloads without server rejection
+headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+}
+
 for filename in categories:
     full_url = f"{BASE_URL}{filename}"
     print(f"📥 Pulling file: {filename}")
     try:
-        response = requests.get(full_url, timeout=30)
+        response = requests.get(full_url, headers=headers, timeout=30)
         if response.status_code == 200:
             xml_data = gzip.decompress(response.content)
             
@@ -62,7 +67,6 @@ if master_root is not None:
         f.write(ET.tostring(master_root, encoding='utf-8'))
     print("\n🎉 Custom EPG compiled perfectly!")
 else:
-    # Fallback template container so the GitHub Action never hits Exit Code 1 again
     print("\n⚠️ No data downloaded. Creating a blank template file to prevent player crash.")
     fallback_root = ET.Element('tv')
     with gzip.open("my_combined_epg.xml.gz", 'wb') as f:
